@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Summer Thermal Behaviour Tool | EN ISO 13786</title>
+  <link rel="stylesheet" href="styles.css?v=4">
+</head>
+<body>
+  <header class="hero">
+    <div>
+      <p class="eyebrow">EAACA calculation tool concept · Version 2.2</p>
+      <h1>Summer Thermal Behaviour of Constructions</h1>
+      <p>Dynamic thermal parameters according to EN ISO 13786, based on the calibrated Excel matrix method.</p>
+    </div>
+    <button id="printPage" class="secondary">Print / PDF</button>
+  </header>
+
+  <main>
+    <section class="panel">
+      <h2>1. Construction and boundary conditions</h2>
+      <div class="grid four">
+        <label>Construction name<input id="projectName" placeholder="e.g. Construction A"></label>
+        <label>Period T [s]<input id="periodSeconds" inputmode="decimal"></label>
+        <label>Rsi inside [m²K/W]<input id="rsi" inputmode="decimal"></label>
+        <label>Rse outside [m²K/W]<input id="rse" inputmode="decimal"></label>
+      </div>
+      <div class="button-row">
+        <button id="loadDefault" class="secondary">Load wall example</button>
+        <button id="loadD1" class="secondary">Load calibration D.1</button>
+        <button id="loadD2" class="secondary">Load calibration D.2</button>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>2. Define construction: add layers from inside to outside</h2>
+      <div class="layer-editor">
+        <div class="editor-head">
+          <label class="material-picker">Material from database
+            <select id="materialSelect"></select>
+          </label>
+          <button id="useMaterial" class="secondary">Use selected material</button>
+        </div>
+        <div class="grid five">
+          <label>Layer name<input id="layerName" placeholder="e.g. Interior plaster"></label>
+          <label>λ [W/(mK)]<input id="layerLambda" inputmode="decimal" placeholder="0.700"></label>
+          <label>ρ [kg/m³]<input id="layerDensity" inputmode="decimal" placeholder="1400"></label>
+          <label>c [J/(kgK)]<input id="layerHeat" inputmode="decimal" placeholder="1000"></label>
+          <label>d [m]<input id="layerThickness" inputmode="decimal" placeholder="0.010"></label>
+        </div>
+        <div class="button-row">
+          <button id="addLayer">Add layer to construction</button>
+          <button id="updateLayer" class="secondary" disabled>Update selected layer</button>
+          <button id="cancelLayerEdit" class="secondary" disabled>Cancel editing</button>
+          <button id="saveMaterial" class="secondary">Save as material</button>
+          <button id="clearLayers" class="secondary">Clear layers</button>
+        </div>
+        <p class="hint">Workflow: select a material from the database or enter your own values, add the layer to the construction, then save the completed construction to the comparison. Decimal point is used for display and export; decimal comma is still accepted when typing.</p>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>No.</th><th>Layer</th><th>λ W/(mK)</th><th>ρ kg/m³</th><th>c J/(kgK)</th><th>d m</th><th>Action</th></tr></thead>
+          <tbody id="layersBody"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="panel results-panel">
+      <h2>3. Results</h2>
+      <div id="results" class="metrics"></div>
+      <div class="grid two">
+        <table class="summary"><tbody id="summaryTable"></tbody></table>
+        <div class="note"><strong>Interpretation:</strong> a small decrement factor f and a high amplitude damping 1/f indicate stronger dynamic damping. The periodic transmittance phase is shown as dynamic time shift relative to the 24 h period.</div>
+      </div>
+      <h3>Layer check values</h3>
+      <table><thead><tr><th>No.</th><th>Layer</th><th>R=d/λ</th><th>δ</th><th>ξ=d/δ</th></tr></thead><tbody id="detailsBody"></tbody></table>
+    </section>
+
+    <section class="panel">
+      <h2>4. Save and compare constructions</h2>
+      <p class="hint">Recommended workflow: save the current construction to the comparison, clear the input, define the next construction and save it as Construction B, C, etc.</p>
+      <div class="button-row">
+        <button id="saveConstruction">Save construction and add/update comparison</button>
+        <button id="newConstruction" class="secondary">Clear input for new construction</button>
+        <button id="generateReport" class="secondary">Report: comparative assessment</button>
+        <button id="clearComparison" class="secondary">Clear comparison</button>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>ID</th><th>Construction</th><th>Date</th><th>U₀</th><th>|Y₁₂|</th><th>Shift h</th><th>f</th><th>1/f</th><th>χ₁</th><th>χ₂</th><th>Assessment</th><th></th></tr></thead>
+          <tbody id="comparisonBody"></tbody>
+        </table>
+      </div>
+      <div id="comparisonInterpretation" class="comparison-note"></div>
+      <div id="reportBox" class="report-box"></div>
+    </section>
+
+    <section class="panel">
+      <h2>5. Database and data exchange</h2>
+      <div class="button-row">
+        <button id="exportJson" class="secondary">Export project JSON</button>
+        <label class="file-label">Import project JSON<input type="file" id="importJson" accept="application/json"></label>
+        <button id="exportMaterials" class="secondary">Export materials JSON</button>
+        <label class="file-label">Import materials JSON<input type="file" id="importMaterials" accept="application/json"></label>
+      </div>
+      <p class="hint">All data are stored locally in the browser. No data are transmitted to EAACA or any server.</p>
+    </section>
+
+    <section class="panel legal">
+      <h2>Disclaimer and legal notice</h2>
+      <p>This tool is a non-binding calculation aid for preliminary technical assessment. It does not replace project-specific design, professional judgement, verification under the applicable national rules, or the legally relevant text of standards, approvals, EPDs or product declarations.</p>
+      <p>All results depend on user-entered material data, layer order, boundary conditions and the selected period. EAACA, its members, contributors and providers of this tool accept no liability for the accuracy, completeness, fitness for a particular purpose or consequences of using the tool. Use is at the user’s own responsibility.</p>
+      <p>The calculation follows the matrix approach implemented in the provided calibrated Excel file for EN ISO 13786. The standard itself is not reproduced. Users must consult the official standard for normative requirements.</p>
+    </section>
+  </main>
+
+  <footer>Summer Thermal Behaviour Tool · Version 2.2 · Static GitHub Pages version · Data remain on the user's PC/browser.</footer>
+  <script src="app.js?v=4"></script>
+</body>
+</html>
