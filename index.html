@@ -33,19 +33,35 @@
     </section>
 
     <section class="panel">
-      <h2>2. Layers from inside to outside</h2>
-      <div class="button-row">
-        <select id="materialSelect"></select>
-        <button id="addMaterial">Add material</button>
-        <button id="clearLayers" class="secondary">Clear layers</button>
+      <h2>2. Add layers from inside to outside</h2>
+      <div class="layer-editor">
+        <div class="editor-head">
+          <label class="material-picker">Material from database
+            <select id="materialSelect"></select>
+          </label>
+          <button id="useMaterial" class="secondary">Use selected material</button>
+        </div>
+        <div class="grid five">
+          <label>Layer name<input id="layerName" placeholder="e.g. Interior plaster"></label>
+          <label>λ [W/(mK)]<input id="layerLambda" inputmode="decimal" placeholder="0.700"></label>
+          <label>ρ [kg/m³]<input id="layerDensity" inputmode="decimal" placeholder="1400"></label>
+          <label>c [J/(kgK)]<input id="layerHeat" inputmode="decimal" placeholder="1000"></label>
+          <label>d [m]<input id="layerThickness" inputmode="decimal" placeholder="0.010"></label>
+        </div>
+        <div class="button-row">
+          <button id="addLayer">Add layer</button>
+          <button id="updateLayer" class="secondary" disabled>Update selected layer</button>
+          <button id="cancelLayerEdit" class="secondary" disabled>Cancel editing</button>
+          <button id="clearLayers" class="secondary">Clear layers</button>
+        </div>
+        <p class="hint">Add one layer at a time, from the room side to the external side. Decimal point is used for display and export; decimal comma is still accepted when typing.</p>
       </div>
       <div class="table-wrap">
         <table>
-          <thead><tr><th>No.</th><th>Layer</th><th>λ W/(mK)</th><th>ρ kg/m³</th><th>c J/(kgK)</th><th>d m</th><th></th></tr></thead>
+          <thead><tr><th>No.</th><th>Layer</th><th>λ W/(mK)</th><th>ρ kg/m³</th><th>c J/(kgK)</th><th>d m</th><th>Action</th></tr></thead>
           <tbody id="layersBody"></tbody>
         </table>
       </div>
-      <p class="hint">Enter homogeneous layers from the room side to the external side. Decimal comma and decimal point are accepted.</p>
     </section>
 
     <section class="panel results-panel">
@@ -67,10 +83,11 @@
       </div>
       <div class="table-wrap">
         <table>
-          <thead><tr><th>Name</th><th>Date</th><th>U₀</th><th>|Y₁₂|</th><th>Shift h</th><th>f</th><th>1/f</th><th>χ₁</th><th>χ₂</th><th></th></tr></thead>
+          <thead><tr><th>Name</th><th>Date</th><th>U₀</th><th>|Y₁₂|</th><th>Shift h</th><th>f</th><th>1/f</th><th>χ₁</th><th>χ₂</th><th>Assessment</th><th></th></tr></thead>
           <tbody id="comparisonBody"></tbody>
         </table>
       </div>
+      <div id="comparisonInterpretation" class="comparison-note"></div>
     </section>
 
     <section class="panel">

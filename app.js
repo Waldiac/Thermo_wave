@@ -16,14 +16,16 @@ const DEFAULT_STATE = {
 
 let materialDb = [];
 let state = structuredClone(DEFAULT_STATE);
+let editLayerIndex = null;
 
 const $ = (id) => document.getElementById(id);
 const num = (v) => {
   if (v === null || v === undefined || v === '') return NaN;
-  return Number(String(v).replace(',', '.'));
+  return Number(String(v).trim().replace(',', '.'));
 };
-const fmt = (v, d = 3) => Number.isFinite(v) ? v.toLocaleString('de-DE', { maximumFractionDigits: d, minimumFractionDigits: d }) : '–';
-const fmtFlex = (v, d = 4) => Number.isFinite(v) ? v.toLocaleString('de-DE', { maximumFractionDigits: d }) : '–';
+const fmt = (v, d = 3) => Number.isFinite(v) ? v.toLocaleString('en-US', { maximumFractionDigits: d, minimumFractionDigits: d, useGrouping: false }) : '–';
+const fmtFlex = (v, d = 4) => Number.isFinite(v) ? v.toLocaleString('en-US', { maximumFractionDigits: d, useGrouping: false }) : '–';
+const esc = (s) => String(s ?? '').replace(/[&<>'"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[c]));
 
 function complex(re = 0, im = 0) { return { re, im }; }
 function cAdd(a, b) { return complex(a.re + b.re, a.im + b.im); }
@@ -117,38 +119,96 @@ function calculate(inputState) {
 
 function renderMaterialSelect() {
   const select = $('materialSelect');
-  select.innerHTML = '<option value="">Select material from database…</option>' + materialDb.map((m, i) => `<option value="${i}">${m.name_en} / ${m.name_de}</option>`).join('');
+  select.innerHTML = '<option value="">Select material from database…</option>' + materialDb.map((m, i) => `<option value="${i}">${esc(m.name_en)} / ${esc(m.name_de)}</option>`).join('');
+}
+
+function layerFromEditor() {
+  return {
+    name: $('layerName').value.trim(),
+    lambda: num($('layerLambda').value),
+    density: num($('layerDensity').value),
+    specificHeat: num($('layerHeat').value),
+    thickness: num($('layerThickness').value)
+  };
+}
+function fillLayerEditor(layer = {}) {
+  $('layerName').value = layer.name || '';
+  $('layerLambda').value = Number.isFinite(layer.lambda) ? fmtFlex(layer.lambda, 4) : '';
+  $('layerDensity').value = Number.isFinite(layer.density) ? fmtFlex(layer.density, 1) : '';
+  $('layerHeat').value = Number.isFinite(layer.specificHeat) ? fmtFlex(layer.specificHeat, 1) : '';
+  $('layerThickness').value = Number.isFinite(layer.thickness) ? fmtFlex(layer.thickness, 4) : '';
+}
+function clearLayerEditor() {
+  editLayerIndex = null;
+  fillLayerEditor({});
+  $('addLayer').disabled = false;
+  $('updateLayer').disabled = true;
+  $('cancelLayerEdit').disabled = true;
+}
+function validateEditorLayer(layer) {
+  if (!validLayer(layer)) {
+    alert('Please enter a layer name and positive values for λ, ρ, c and d.');
+    return false;
+  }
+  return true;
+}
+function addLayerFromEditor() {
+  if (state.layers.length >= MAX_LAYERS) { alert(`Maximum ${MAX_LAYERS} layers.`); return; }
+  const layer = layerFromEditor();
+  if (!validateEditorLayer(layer)) return;
+  state.layers.push(layer);
+  clearLayerEditor();
+  calculateAndRender();
+}
+function editLayer(index) {
+  const layer = state.layers[index];
+  if (!layer) return;
+  editLayerIndex = index;
+  fillLayerEditor(layer);
+  $('addLayer').disabled = true;
+  $('updateLayer').disabled = false;
+  $('cancelLayerEdit').disabled = false;
+  $('layerName').focus();
+}
+function updateLayerFromEditor() {
+  if (editLayerIndex === null) return;
+  const layer = layerFromEditor();
+  if (!validateEditorLayer(layer)) return;
+  state.layers[editLayerIndex] = layer;
+  clearLayerEditor();
+  calculateAndRender();
+}
+function useSelectedMaterial() {
+  const idx = Number($('materialSelect').value);
+  if (!Number.isInteger(idx) || !materialDb[idx]) return;
+  const m = materialDb[idx];
+  fillLayerEditor({ name: m.name_en, lambda: m.lambda, density: m.density, specificHeat: m.specificHeat, thickness: m.defaultThickness || 0.1 });
 }
 
 function renderLayers() {
   const tbody = $('layersBody');
-  tbody.innerHTML = '';
-  for (let i = 0; i < MAX_LAYERS; i++) {
-    const l = state.layers[i] || { name: '', lambda: '', density: '', specificHeat: '', thickness: '' };
-    const tr = document.createElement('tr');
-    tr.innerHTML = `
-      <td>${i + 1}</td>
-      <td><input data-row="${i}" data-field="name" value="${l.name || ''}" placeholder="Layer name"></td>
-      <td><input data-row="${i}" data-field="lambda" value="${l.lambda ?? ''}" inputmode="decimal"></td>
-      <td><input data-row="${i}" data-field="density" value="${l.density ?? ''}" inputmode="decimal"></td>
-      <td><input data-row="${i}" data-field="specificHeat" value="${l.specificHeat ?? ''}" inputmode="decimal"></td>
-      <td><input data-row="${i}" data-field="thickness" value="${l.thickness ?? ''}" inputmode="decimal"></td>
-      <td class="right"><button class="small" data-action="remove" data-row="${i}">Remove</button></td>`;
-    tbody.appendChild(tr);
+  const valid = state.layers.filter(l => l && (l.name || l.lambda || l.thickness));
+  state.layers = valid.slice(0, MAX_LAYERS);
+  if (!state.layers.length) {
+    tbody.innerHTML = '<tr><td colspan="7" class="empty">No layers added yet. Start with the inner layer.</td></tr>';
+    return;
   }
-  tbody.querySelectorAll('input').forEach(inp => inp.addEventListener('input', updateLayerFromInput));
-  tbody.querySelectorAll('button[data-action="remove"]').forEach(btn => btn.addEventListener('click', () => {
-    state.layers.splice(Number(btn.dataset.row), 1);
+  tbody.innerHTML = state.layers.map((l, i) => `
+    <tr>
+      <td>${i + 1}</td>
+      <td>${esc(l.name)}</td>
+      <td>${fmtFlex(l.lambda, 4)}</td>
+      <td>${fmtFlex(l.density, 1)}</td>
+      <td>${fmtFlex(l.specificHeat, 1)}</td>
+      <td>${fmtFlex(l.thickness, 4)}</td>
+      <td><button class="small" data-edit="${i}">Edit</button> <button class="small danger" data-remove="${i}">Remove</button></td>
+    </tr>`).join('');
+  tbody.querySelectorAll('[data-edit]').forEach(btn => btn.addEventListener('click', () => editLayer(Number(btn.dataset.edit))));
+  tbody.querySelectorAll('[data-remove]').forEach(btn => btn.addEventListener('click', () => {
+    state.layers.splice(Number(btn.dataset.remove), 1);
+    if (editLayerIndex !== null) clearLayerEditor();
     calculateAndRender();
   }));
-}
-
-function updateLayerFromInput(e) {
-  const row = Number(e.target.dataset.row);
-  const field = e.target.dataset.field;
-  while (state.layers.length <= row) state.layers.push({ name: '', lambda: '', density: '', specificHeat: '', thickness: '' });
-  state.layers[row][field] = field === 'name' ? e.target.value : num(e.target.value);
-  calculateAndRender(false);
 }
 
 function renderResults(res) {
@@ -168,7 +228,7 @@ function renderResults(res) {
     <tr><th>Valid layers</th><td>${res.validLayers.length}</td></tr>
     <tr><th>Calculation method</th><td>Matrix method after EN ISO 13786, 24 h default period</td></tr>`;
   $('detailsBody').innerHTML = res.layerDetails.map((l, idx) => `
-    <tr><td>${idx + 1}</td><td>${l.name}</td><td>${fmtFlex(l.R, 4)}</td><td>${fmtFlex(l.delta, 4)}</td><td>${fmtFlex(l.xi, 4)}</td></tr>`).join('');
+    <tr><td>${idx + 1}</td><td>${esc(l.name)}</td><td>${fmtFlex(l.R, 4)}</td><td>${fmtFlex(l.delta, 4)}</td><td>${fmtFlex(l.xi, 4)}</td></tr>`).join('');
 }
 
 function calculateAndRender(redrawLayers = true) {
@@ -184,24 +244,17 @@ function calculateAndRender(redrawLayers = true) {
 
 function loadStateToInputs() {
   $('projectName').value = state.projectName || '';
-  $('periodSeconds').value = state.periodSeconds;
-  $('rsi').value = state.rsi;
-  $('rse').value = state.rse;
+  $('periodSeconds').value = fmtFlex(state.periodSeconds, 0);
+  $('rsi').value = fmtFlex(state.rsi, 3);
+  $('rse').value = fmtFlex(state.rse, 3);
+  clearLayerEditor();
   renderLayers();
   calculateAndRender(false);
 }
 
-function addSelectedMaterial() {
-  const idx = Number($('materialSelect').value);
-  if (!Number.isInteger(idx) || !materialDb[idx]) return;
-  const m = materialDb[idx];
-  state.layers.push({ name: m.name_en, lambda: m.lambda, density: m.density, specificHeat: m.specificHeat, thickness: m.defaultThickness || 0.1 });
-  state.layers = state.layers.filter(l => l && (l.name || l.lambda || l.thickness)).slice(0, MAX_LAYERS);
-  calculateAndRender();
-}
-
 function clearLayers() {
   state.layers = [];
+  clearLayerEditor();
   calculateAndRender();
 }
 
@@ -220,22 +273,60 @@ function loadExample(type) {
   loadStateToInputs();
 }
 
+function qualitativeAssessment(results, best) {
+  const tags = [];
+  if (results.f === best.minF) tags.push('best damping');
+  if (results.shift === best.maxShift) tags.push('largest time shift');
+  if (results.chi1 === best.maxChi1) tags.push('highest internal heat capacity');
+  if (!tags.length && Number.isFinite(results.f)) tags.push(results.f < 0.15 ? 'good damping' : results.f < 0.35 ? 'moderate damping' : 'weak damping');
+  return tags.join(', ');
+}
+function renderComparisonInterpretation(saved, best) {
+  const box = $('comparisonInterpretation');
+  if (!saved.length) { box.innerHTML = ''; return; }
+  if (saved.length === 1) {
+    box.innerHTML = '<strong>Interpretation:</strong> Save at least two constructions for a comparative assessment of the less common dynamic values.';
+    return;
+  }
+  const by = (key, val) => saved.find(x => x.results[key] === val)?.name || '–';
+  box.innerHTML = `
+    <strong>Comparative interpretation of less common values:</strong>
+    <ul>
+      <li><strong>f</strong> is the decrement factor. The lower value is better for summer damping. Best: <strong>${esc(by('f', best.minF))}</strong> (${fmt(best.minF, 4)}).</li>
+      <li><strong>1/f</strong> is the amplitude damping. The higher value means stronger reduction of the external temperature wave. Best: <strong>${esc(by('damping', best.maxDamping))}</strong> (${fmt(best.maxDamping, 2)}).</li>
+      <li><strong>Shift h</strong> describes the delay of the periodic heat flow. Larger positive values are usually favourable because the peak load is shifted into later hours. Largest: <strong>${esc(by('shift', best.maxShift))}</strong> (${fmt(best.maxShift, 2)} h).</li>
+      <li><strong>χ₁</strong> is the internal areal heat capacity relevant for the room side. A higher value supports thermal buffering on the inside. Highest: <strong>${esc(by('chi1', best.maxChi1))}</strong> (${fmt(best.maxChi1, 1)} kJ/(m²K)).</li>
+      <li><strong>χ₂</strong> is the external-side areal heat capacity. It is useful for understanding whether storage mass is mainly located outside or inside the insulation layer.</li>
+    </ul>`;
+}
+function finiteValues(saved, key) { return saved.map(x => x.results[key]).filter(Number.isFinite); }
+function comparisonBest(saved) {
+  const getMin = (k) => Math.min(...finiteValues(saved, k));
+  const getMax = (k) => Math.max(...finiteValues(saved, k));
+  return { minF: getMin('f'), maxDamping: getMax('damping'), maxShift: getMax('shift'), maxChi1: getMax('chi1') };
+}
+
 function saveConstruction() {
   const res = calculate(state);
   const saved = JSON.parse(localStorage.getItem('stw_constructions') || '[]');
-  saved.push({
-    id: crypto.randomUUID(), date: new Date().toISOString(), name: state.projectName || 'Unnamed construction', state: structuredClone(state), results: {
-      U0: res.U0, Y12: res.Y12.value, shift: res.Y12.phase.dynamic, f: res.decrement, damping: res.damping, chi1: res.chi1, chi2: res.chi2, thickness: res.totalThickness
-    }
-  });
+  const existingIdx = saved.findIndex(x => x.name === (state.projectName || 'Unnamed construction'));
+  const item = {
+    id: existingIdx >= 0 ? saved[existingIdx].id : crypto.randomUUID(),
+    date: new Date().toISOString(),
+    name: state.projectName || 'Unnamed construction',
+    state: structuredClone(state),
+    results: { U0: res.U0, Y12: res.Y12.value, shift: res.Y12.phase.dynamic, f: res.decrement, damping: res.damping, chi1: res.chi1, chi2: res.chi2, thickness: res.totalThickness }
+  };
+  if (existingIdx >= 0) saved[existingIdx] = item; else saved.push(item);
   localStorage.setItem('stw_constructions', JSON.stringify(saved));
   renderComparison();
 }
 
 function renderComparison() {
   const saved = JSON.parse(localStorage.getItem('stw_constructions') || '[]');
+  const best = saved.length ? comparisonBest(saved) : {};
   $('comparisonBody').innerHTML = saved.map(x => `<tr>
-    <td>${x.name}</td><td>${new Date(x.date).toLocaleDateString('de-DE')}</td><td>${fmt(x.results.U0, 4)}</td><td>${fmt(x.results.Y12, 4)}</td><td>${fmt(x.results.shift, 2)}</td><td>${fmt(x.results.f, 4)}</td><td>${fmt(x.results.damping, 2)}</td><td>${fmt(x.results.chi1, 1)}</td><td>${fmt(x.results.chi2, 1)}</td><td><button class="small" data-load="${x.id}">Load</button> <button class="small danger" data-del="${x.id}">Delete</button></td>
+    <td>${esc(x.name)}</td><td>${new Date(x.date).toLocaleDateString('en-US')}</td><td>${fmt(x.results.U0, 4)}</td><td>${fmt(x.results.Y12, 4)}</td><td>${fmt(x.results.shift, 2)}</td><td>${fmt(x.results.f, 4)}</td><td>${fmt(x.results.damping, 2)}</td><td>${fmt(x.results.chi1, 1)}</td><td>${fmt(x.results.chi2, 1)}</td><td>${esc(qualitativeAssessment(x.results, best))}</td><td><button class="small" data-load="${x.id}">Load</button> <button class="small danger" data-del="${x.id}">Delete</button></td>
   </tr>`).join('');
   $('comparisonBody').querySelectorAll('[data-load]').forEach(b => b.addEventListener('click', () => {
     const item = saved.find(x => x.id === b.dataset.load); if (item) { state = item.state; loadStateToInputs(); }
@@ -243,6 +334,7 @@ function renderComparison() {
   $('comparisonBody').querySelectorAll('[data-del]').forEach(b => b.addEventListener('click', () => {
     localStorage.setItem('stw_constructions', JSON.stringify(saved.filter(x => x.id !== b.dataset.del))); renderComparison();
   }));
+  renderComparisonInterpretation(saved, best);
 }
 
 function saveLocal() { localStorage.setItem('stw_current', JSON.stringify(state)); }
@@ -283,7 +375,10 @@ function importMaterials(file) {
 
 function bind() {
   ['projectName', 'periodSeconds', 'rsi', 'rse'].forEach(id => $(id).addEventListener('input', () => calculateAndRender(false)));
-  $('addMaterial').addEventListener('click', addSelectedMaterial);
+  $('useMaterial').addEventListener('click', useSelectedMaterial);
+  $('addLayer').addEventListener('click', addLayerFromEditor);
+  $('updateLayer').addEventListener('click', updateLayerFromEditor);
+  $('cancelLayerEdit').addEventListener('click', clearLayerEditor);
   $('clearLayers').addEventListener('click', clearLayers);
   $('loadDefault').addEventListener('click', () => loadExample('default'));
   $('loadD1').addEventListener('click', () => loadExample('d1'));
