@@ -1,4 +1,4 @@
-# ThermoWave – Summer Thermal Behaviour Tool (EN ISO 13786)
+# AAC heat-wave – Summer Thermal Behaviour Tool (EN ISO 13786)
 
 Static browser tool for calculating dynamic thermal parameters of layered constructions. The implementation follows the matrix logic of the supplied calibrated Excel workbook:
 
@@ -214,3 +214,8 @@ Improves the direct-comparison conclusion. The previous generic reminder not to 
 ## Version 5.9
 
 Fixes stale language rendering in the direct comparison. When switching DE/EN, an already generated direct comparison is now rebuilt immediately so the table headers, indicator explanations, assessments and short overall assessment match the selected language.
+
+
+## Version 6.0
+
+Renames the tool from ThermoWave to **AAC heat-wave** throughout the visible user interface, README and generated headings. Calculation logic and data structure remain unchanged.
