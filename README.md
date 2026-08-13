@@ -204,3 +204,8 @@ Fixes manual editing of bilingual layer names. When a user changes a layer name 
 ## Version 5.7
 
 Removes the complete 'Comparison graphic – key indicators' block, including the short assessment card. The print comparison graphic button and related render/binding calls were removed. The manual remains available.
+
+
+## Version 5.8
+
+Improves the direct-comparison conclusion. The previous generic reminder not to assess delay alone was replaced by a construction-specific statement identifying which compared construction has the actual advantage from the combination of delay and damping. If delay and damping point in different directions, the tool now explains that the advantage depends on the room situation.
