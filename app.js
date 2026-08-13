@@ -1,7 +1,7 @@
 'use strict';
 
 const MAX_LAYERS = 18;
-const TOOL_VERSION = '5.8';
+const TOOL_VERSION = '5.9';
 
 const initialUrlLang = new URLSearchParams(window.location.search).get('lang');
 let currentLang = (initialUrlLang === 'en' || initialUrlLang === 'de') ? initialUrlLang : (localStorage.getItem('stw_lang') || 'de');
@@ -94,6 +94,7 @@ function setLanguage(lang) {
   renderSavedConstructionSelect();
   loadStateToInputs();
   renderComparison();
+  refreshPairComparisonLanguage();
     calculateAndRender(false); // language refresh
 }
 function currentLocale() { return currentLang === 'de' ? 'de-DE' : 'en-US'; }
@@ -1185,6 +1186,12 @@ function printManualOnly() {
   };
   window.addEventListener('afterprint', cleanup);
   setTimeout(() => window.print(), 30);
+}
+
+function refreshPairComparisonLanguage() {
+  renderPairSelectors(getComparisonSet());
+  const box = $('pairComparisonBox');
+  if (box && box.innerHTML.trim()) generatePairComparison();
 }
 
 function renderPairSelectors(saved = getComparisonSet()) {

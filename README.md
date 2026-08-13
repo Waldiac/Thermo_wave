@@ -209,3 +209,8 @@ Removes the complete 'Comparison graphic – key indicators' block, including th
 ## Version 5.8
 
 Improves the direct-comparison conclusion. The previous generic reminder not to assess delay alone was replaced by a construction-specific statement identifying which compared construction has the actual advantage from the combination of delay and damping. If delay and damping point in different directions, the tool now explains that the advantage depends on the room situation.
+
+
+## Version 5.9
+
+Fixes stale language rendering in the direct comparison. When switching DE/EN, an already generated direct comparison is now rebuilt immediately so the table headers, indicator explanations, assessments and short overall assessment match the selected language.
